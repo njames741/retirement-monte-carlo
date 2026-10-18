@@ -1,8 +1,8 @@
-# v1.4.0（2026-10-18，尚未合併發布）
+# v1.4.0（2026-10-18）
 
 [Issue #9](https://github.com/njames741/retirement-monte-carlo/issues/9) 已實作：首頁退休計畫直接輸入最低每月生活費，以固定實質金額判定生活費成功率，並移除提領率探索。48 項計算／資料／Worker 測試、43 項桌面／手機案例及 12 項獨立數值稽核通過，手機 100k 依既有設定略過；[修改與驗證紀錄](REVISION_1_4.md)。
 
-本次修改透過獨立分支及 PR 提供審閱，尚未更新 main 或公開網站。合併後仍由 Pages 工作流程驗證並發布，應以對應提交的 deploy 終態確認上線。
+本次修改透過 [PR #10](https://github.com/njames741/retirement-monte-carlo/pull/10) 審閱及合併，發布由 [Pages 工作流程](https://github.com/njames741/retirement-monte-carlo/actions/workflows/pages.yml) 驗證後執行；以 main 對應提交的 deploy 終態確認上線。公開入口：[退休研究室](https://njames741.github.io/retirement-monte-carlo/)。
 
 # v1.3.1（2026-10-17）
 

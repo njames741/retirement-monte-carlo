@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {readFile, writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {parseArgs} from 'node:util';
-import {DEFAULTS, prepareMarket, evaluate, searchRate} from '../dist/engine.js';
+import {DEFAULTS, prepareMarket, evaluate} from '../dist/engine.js';
 import {currencyDefaults} from '../dist/currency.js';
 import {datasetForCurrency} from '../dist/datasets.js';
 import {EQUITY_PARAMETERS} from '../dist/equity-parameters.js';
@@ -56,7 +56,7 @@ function realLedger(c, market) {
   let ruined = 0, lifestyle = 0;
   const drops = [0, 0, 0, 0], depletion = Array(c.years + 1).fill(0);
   for (let p = 0; p < c.paths; p++) {
-    let a = c.initial, lastSpending = c.initial * c.rate, lastInflation = 1, lastGross = 1, minimum = 1, death = 0;
+    let a = c.initial, lastSpending = c.initial * c.rate, lastInflation = 1, lastGross = 1, minimum = 1, minimumPaid = Infinity, death = 0;
     assets[0].push(a);
     for (let y = 0; y < c.years; y++) {
       let desired = c.initial * c.rate;
@@ -70,7 +70,8 @@ function realLedger(c, market) {
       }
       const paid = Math.min(a, Math.max(0, desired));
       if (!death && a - paid <= c.initial * 1e-12) death = y + 1;
-      minimum = Math.min(minimum, paid / (c.initial * c.rate));
+      if(c.rate>0) minimum = Math.min(minimum, paid / (c.initial * c.rate));
+      minimumPaid = Math.min(minimumPaid, paid);
       spending[y].push(paid);
       const k = p * c.years + y;
       a = (a - paid) * market.factors[k] / market.inflation[k];
@@ -78,7 +79,7 @@ function realLedger(c, market) {
       lastSpending = paid; lastInflation = market.inflation[k]; lastGross = market.factors[k];
     }
     if (death) { ruined++; depletion[death]++; }
-    if (!death && minimum + 1e-10 >= c.spendingFloor) lifestyle++;
+    if (!death && minimumPaid + 1e-8 >= c.minimumMonthlySpending * 12) lifestyle++;
     [.9, .8, .7, .5].forEach((level, i) => { if (minimum < level - 1e-10) drops[i]++; });
   }
   return {assets, spending, ruined, lifestyle: lifestyle / c.paths, drops: drops.map(n => n / c.paths), depletion};
@@ -101,7 +102,7 @@ check('Four strategies agree with an independent real-purchasing-power ledger', 
 });
 check('Amounts scale linearly; currency labels do not silently change stock returns', () => {
   for (const strategy of ['fixed', 'percent', 'gk', 'dynamic']) {
-    const c = {...base, strategy, vol: .25, rate: .05}, market = prepareMarket(c), a = evaluate(c, market), b = evaluate({...c, currency: 'TWD', initial: c.initial * 30}, market);
+    const c = {...base, strategy, vol: .25, rate: .05}, market = prepareMarket(c), a = evaluate(c, market), b = evaluate({...c, currency: 'TWD', initial: c.initial * 30, minimumMonthlySpending: c.minimumMonthlySpending * 30}, market);
     assert.equal(a.ruined, b.ruined); assert.equal(a.lifestyle, b.lifestyle);
     a.terminal.forEach((v, i) => near(b.terminal[i], v * 30));
     a.spendingPercentiles.forEach((row, i) => row.values.forEach((v, j) => near(b.spendingPercentiles[i].values[j], v * 30)));
@@ -197,17 +198,15 @@ if (changedStockYears) findings.push({id: 'INFLATION-RNG-COUPLING', severity: 'P
 
 const defaultConfig = currencyDefaults(), defaultMarket = prepareMarket(defaultConfig, dataset);
 summaries.default = {currency: defaultConfig.currency, years: defaultConfig.years, paths: defaultConfig.paths, seed: defaultConfig.seed,
-  initial: defaultConfig.initial, rate: defaultConfig.rate, cagr: EQUITY_PARAMETERS.parameters.cagr, logVol: EQUITY_PARAMETERS.parameters.logVol,
+  initial: defaultConfig.initial, rate: defaultConfig.rate, minimumMonthlySpending: defaultConfig.minimumMonthlySpending, cagr: EQUITY_PARAMETERS.parameters.cagr, logVol: EQUITY_PARAMETERS.parameters.logVol,
   inflation: defaultConfig.inflation, fee: defaultConfig.fee};
 summaries.strategies = ['fixed', 'percent', 'gk', 'dynamic'].map(strategy => {
   const r = evaluate({...defaultConfig, strategy}, defaultMarket);
   return {strategy, ruined: r.ruined, survival: r.survival, lifestyle: r.lifestyle, terminalMedian: r.terminal[3], year50SpendingMedian: r.spendingPercentiles[49].values[3], drops: r.drops};
 });
-const search = searchRate(defaultConfig, defaultMarket);
-summaries.rateSearch = {rate: search.rate, target: search.target, metric: search.metric, step: search.step, gridPoints: search.trials.length};
 summaries.cpiSampling = cpiDetails;
 summaries.equivalentInflation = {changedStockYears, paths: sameInflation.paths, constantRuined: constantResult.ruined, zeroVolatilityRuined: zeroVolResult.ruined};
-const output = {auditDate: '2026-10-17', runtime: process.version, scenarioVersion: SCENARIO_VERSION, readOnlyAudit: true, checks, findings, summaries};
+const output = {auditDate: '2026-10-18', runtime: process.version, scenarioVersion: SCENARIO_VERSION, readOnlyAudit: true, checks, findings, summaries};
 if (options.output) await writeFile(options.output, JSON.stringify(output, null, 2) + '\n');
 console.log(JSON.stringify(output, null, 2));
 if (checks.some(c => c.status === 'fail') || options.strict && findings.length) process.exitCode = 1;

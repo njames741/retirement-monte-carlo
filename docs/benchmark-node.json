@@ -1,5 +1,5 @@
 {
-  "executed": "2026-10-17T15:41:59.876Z",
+  "executed": "2026-10-18T06:17:40.903Z",
   "environment": "Node on development host, not a browser claim",
   "reports": [
     {
@@ -7,10 +7,12 @@
       "cpu": "12th Gen Intel(R) Core(TM) i7-12700KF",
       "paths": 10000,
       "years": 50,
+      "currency": "USD",
+      "minimumMonthlySpending": 2666.67,
       "model": "parametric",
-      "marketMs": 239.6081,
-      "evaluationMs": 70.69729999999998,
-      "totalMs": 310.30539999999996,
+      "marketMs": 229.1309,
+      "evaluationMs": 65.4991,
+      "totalMs": 294.63,
       "ruin": 0.4304,
       "lifestyle": 0.5696,
       "seed": 741
@@ -20,20 +22,15 @@
       "cpu": "12th Gen Intel(R) Core(TM) i7-12700KF",
       "paths": 100000,
       "years": 50,
+      "currency": "USD",
+      "minimumMonthlySpending": 2666.67,
       "model": "parametric",
-      "marketMs": 2405.4537,
-      "evaluationMs": 680.4083999999998,
-      "totalMs": 3085.8621,
+      "marketMs": 2236.2039,
+      "evaluationMs": 585.1711999999998,
+      "totalMs": 2821.3750999999997,
       "ruin": 0.4295,
       "lifestyle": 0.5705,
       "seed": 741
-    },
-    {
-      "operation": "150-point grid search",
-      "paths": 10000,
-      "years": 50,
-      "elapsedMs": 1279.9029999999998,
-      "rate": 0.015
     }
   ]
 }

@@ -1,5 +1,5 @@
 const ns='http://www.w3.org/2000/svg';
-export const money=(v,compact=false,currency='USD')=>!Number.isFinite(v)?'—':(currency==='TWD'?'NT$':'$')+new Intl.NumberFormat(currency==='TWD'?'zh-TW':'en-US',{notation:compact?'compact':'standard',maximumFractionDigits:compact?1:0}).format(v);
+export const money=(v,compact=false,currency='USD',fractionDigits=0)=>!Number.isFinite(v)?'—':(currency==='TWD'?'NT$':'$')+new Intl.NumberFormat(currency==='TWD'?'zh-TW':'en-US',{notation:compact?'compact':'standard',maximumFractionDigits:compact?1:fractionDigits}).format(v);
 export const pct=(v,d=1)=>new Intl.NumberFormat('en-US',{style:'percent',minimumFractionDigits:d,maximumFractionDigits:d}).format(v);
 const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function svgEl(tag,attrs={}){const e=document.createElementNS(ns,tag);for(const[k,v]of Object.entries(attrs))e.setAttribute(k,v);return e;}
@@ -42,12 +42,4 @@ export function barChart(el,bins,{formatX=x=>String(x),formatY=x=>pct(x),N=1,xla
   for(let i=0;i<=3;i++){const yy=top+i/3*(H-top-bottom);line(svg,L,yy,W-R,yy);text(svg,L-9,yy+3,formatY(ymax*(1-i/3)),{'text-anchor':'end'});}
   bins.forEach((b,i)=>{const value=b.count/N,hh=value/ymax*(H-top-bottom);const rect=svgEl('rect',{x:L+i*iw+1,y:H-bottom-hh,width:Math.max(1,iw-2),height:Math.max(value?1:0,hh),rx:1.5,fill:'#8fbaae'});svg.append(rect);rect.addEventListener('pointerenter',()=>{rect.setAttribute('fill','#2c8d79');tip.innerHTML=`<b>${esc(formatX(b.low))}${b.high!==undefined?' – '+esc(formatX(b.high)):''}</b><div>${b.count.toLocaleString()} 條路徑 · ${pct(value,2)}</div>`;tip.hidden=false;tip.style.left=`${Math.min(W-172,L+i*iw)}px`;});rect.addEventListener('pointerleave',()=>{rect.setAttribute('fill','#8fbaae');tip.hidden=true;});if(i%Math.max(1,Math.ceil(bins.length/Math.max(2,Math.floor((W-L-R)/90))))===0)text(svg,L+i*iw+iw/2,H-9,formatX(b.low),{'text-anchor':'middle','font-size':12});});
   if(reference!==null)text(svg,W-R,top,reference,{'text-anchor':'end'});
-}
-export function rateChart(el,trials,target){
-  const{svg,tip,W,H,L,R,top,bottom}=init(el),x=v=>L+v/.15*(W-L-R),y=v=>H-bottom-v*(H-top-bottom);
-  for(const v of [0,.25,.5,.75,1]){line(svg,L,y(v),W-R,y(v));text(svg,L-8,y(v)+3,pct(v,0),{'text-anchor':'end'});}
-  for(const v of [0,.03,.06,.09,.12,.15])text(svg,x(v),H-8,pct(v,0),{'text-anchor':'middle'});
-  line(svg,L,y(target),W-R,y(target),{stroke:'#d6a383','stroke-dasharray':'4 4'});
-  for(const[key,color]of [['success','#278b79'],['lower','#a7c9bf']]){svg.append(svgEl('path',{d:trials.map((r,i)=>`${i?'L':'M'}${x(r.rate)},${y(r[key])}`).join(' '),fill:'none',stroke:color,'stroke-width':key==='success'?2:1,'stroke-dasharray':key==='lower'?'3 3':''}));}
-  svg.addEventListener('pointermove',e=>{const px=e.clientX-svg.getBoundingClientRect().left,rate=(px-L)/(W-L-R)*.15;const row=trials.reduce((a,b)=>Math.abs(a.rate-rate)<Math.abs(b.rate-rate)?a:b);tip.innerHTML=`<b>初始提領率 ${pct(row.rate)}</b><div>成功率 ${pct(row.success,2)}</div><div>Wilson 下限 ${pct(row.lower,2)}</div><div>目標 ${pct(target)}</div>`;tip.hidden=false;tip.style.left=`${Math.max(0,Math.min(W-172,px+10))}px`;});svg.addEventListener('pointerleave',()=>tip.hidden=true);
 }

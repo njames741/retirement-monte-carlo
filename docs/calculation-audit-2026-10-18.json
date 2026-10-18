@@ -1,0 +1,195 @@
+{
+  "auditDate": "2026-10-18",
+  "runtime": "v24.20.0",
+  "scenarioVersion": "2026-10-17.2",
+  "readOnlyAudit": true,
+  "checks": [
+    {
+      "name": "Fixed real withdrawals agree with a closed-form annuity calculation",
+      "status": "pass",
+      "expectedRealTerminal": 2020282.7105088981,
+      "actualRealTerminal": 2020282.710508895
+    },
+    {
+      "name": "Fixed percentage agrees with a closed-form compound product",
+      "status": "pass"
+    },
+    {
+      "name": "Yearly spending uses beginning prices; assets use ending prices",
+      "status": "pass"
+    },
+    {
+      "name": "Four strategies agree with an independent real-purchasing-power ledger",
+      "status": "pass",
+      "scenarios": 12,
+      "pathsPerScenario": 100,
+      "years": 40
+    },
+    {
+      "name": "Amounts scale linearly; currency labels do not silently change stock returns",
+      "status": "pass"
+    },
+    {
+      "name": "Histogram and depletion counts conserve all simulated paths",
+      "status": "pass"
+    },
+    {
+      "name": "Zero volatility, fee and tracking costs agree with exact products",
+      "status": "pass"
+    },
+    {
+      "name": "Local MSCI calibration and provenance agree with published aggregates",
+      "status": "pass",
+      "months": 356,
+      "cagr": 0.07891454252891017,
+      "logVol": 0.15969267734557552,
+      "originalFileHashMatches": true
+    },
+    {
+      "name": "CPI samples are finite and positive: TWD, block=24",
+      "status": "pass"
+    },
+    {
+      "name": "CPI samples are finite and positive: TWD, block=120",
+      "status": "pass"
+    },
+    {
+      "name": "CPI samples are finite and positive: USD, block=24",
+      "status": "pass"
+    },
+    {
+      "name": "CPI samples are finite and positive: USD, block=120",
+      "status": "pass"
+    }
+  ],
+  "findings": [],
+  "summaries": {
+    "default": {
+      "currency": "TWD",
+      "years": 50,
+      "paths": 10000,
+      "seed": 741,
+      "initial": 30000000,
+      "rate": 0.04,
+      "minimumMonthlySpending": 80000,
+      "cagr": 0.07891454252891024,
+      "logVol": 0.15969267734557555,
+      "inflation": 0.02,
+      "fee": 0.0006
+    },
+    "strategies": [
+      {
+        "strategy": "fixed",
+        "ruined": 2495,
+        "survival": 0.7505,
+        "lifestyle": 0.7505,
+        "terminalMedian": 119888240.39642283,
+        "year50SpendingMedian": 1200000,
+        "drops": [
+          0.2492,
+          0.2489,
+          0.2486,
+          0.2478
+        ]
+      },
+      {
+        "strategy": "percent",
+        "ruined": 0,
+        "survival": 1,
+        "lifestyle": 0.3839,
+        "terminalMedian": 63639210.50351325,
+        "year50SpendingMedian": 2491125.228468938,
+        "drops": [
+          0.7377,
+          0.6161,
+          0.4967,
+          0.2825
+        ]
+      },
+      {
+        "strategy": "gk",
+        "ruined": 65,
+        "survival": 0.9935,
+        "lifestyle": 0.5453,
+        "terminalMedian": 69849711.88788989,
+        "year50SpendingMedian": 2892907.8722172845,
+        "drops": [
+          0.5769,
+          0.4543,
+          0.3524,
+          0.1827
+        ]
+      },
+      {
+        "strategy": "dynamic",
+        "ruined": 1513,
+        "survival": 0.8487,
+        "lifestyle": 0.6166,
+        "terminalMedian": 59464372.9255237,
+        "year50SpendingMedian": 2330508.301161603,
+        "drops": [
+          0.4897,
+          0.3828,
+          0.304,
+          0.2048
+        ]
+      }
+    ],
+    "cpiSampling": [
+      {
+        "currency": "TWD",
+        "block": 24,
+        "uniformSampleGeometricRate": 0.016702453232031497,
+        "legacyExpectedGeometricRate": 0.016132753911697384,
+        "legacyExpectedPriceGeometricRatioToUniform": 0.9723641880540747,
+        "uniformMonthWeight": 0.0018248175182481751,
+        "legacyFirstMonthWeightAfterHorizon": 0.0000793650793648216,
+        "simulatedGeometricRate": 0.016733070797933593,
+        "annualLogMeanStandardError": 0.000029601751271373474,
+        "zAgainstUniform": 1.0173089034892724
+      },
+      {
+        "currency": "TWD",
+        "block": 120,
+        "uniformSampleGeometricRate": 0.016702453232031497,
+        "legacyExpectedGeometricRate": 0.015788831779023217,
+        "legacyExpectedPriceGeometricRatioToUniform": 0.9560444982162135,
+        "uniformMonthWeight": 0.0018248175182481751,
+        "legacyFirstMonthWeightAfterHorizon": 0.000019367771586126974,
+        "simulatedGeometricRate": 0.016684580370361694,
+        "annualLogMeanStandardError": 0.000028512147850355396,
+        "zAgainstUniform": -0.6165582389246492
+      },
+      {
+        "currency": "USD",
+        "block": 24,
+        "uniformSampleGeometricRate": 0.030252683707142538,
+        "legacyExpectedGeometricRate": 0.02878029057511285,
+        "legacyExpectedPriceGeometricRatioToUniform": 0.9309879215709326,
+        "uniformMonthWeight": 0.0018315018315018315,
+        "legacyFirstMonthWeightAfterHorizon": 0.0000809017905876455,
+        "simulatedGeometricRate": 0.03022994055609934,
+        "annualLogMeanStandardError": 0.000028794011572417387,
+        "zAgainstUniform": -0.766671818964997
+      },
+      {
+        "currency": "USD",
+        "block": 120,
+        "uniformSampleGeometricRate": 0.030252683707142538,
+        "legacyExpectedGeometricRate": 0.027641397660039382,
+        "legacyExpectedPriceGeometricRatioToUniform": 0.880829460798548,
+        "uniformMonthWeight": 0.0018315018315018315,
+        "legacyFirstMonthWeightAfterHorizon": 0.000019896153970750585,
+        "simulatedGeometricRate": 0.030312606335550853,
+        "annualLogMeanStandardError": 0.000033541442402406494,
+        "zAgainstUniform": 1.7340145436644216
+      }
+    ],
+    "equivalentInflation": {
+      "changedStockYears": 0,
+      "paths": 10000,
+      "constantRuined": 2495,
+      "zeroVolatilityRuined": 2495
+    }
+  }
+}

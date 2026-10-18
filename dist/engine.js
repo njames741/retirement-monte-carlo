@@ -5,15 +5,14 @@ export const DEFAULTS={currency:'USD',initial:1000000,years:50,rate:0.04,strateg
   returnMode:'custom',sampling:'parametric',cagr:0.07,vol:0.18,fee:0.0006,drag:0,
   inflationModel:'constant',inflation:0.025,inflationVol:0.015,block:24,
   usWeight:0.63,transition:10,longRun:0.07,guard:0.2,adjust:0.1,ceiling:0.05,floor:0.025,
-  spendingFloor:0.8,successTarget:0.95,successMetric:'lifestyle'};
+  minimumMonthlySpending:2666.67};
 export function validate(config,data){
   const c=resolveScenario(config,data);
   if(!['USD','TWD'].includes(c.currency))throw Error('未知幣種。');
-  const bounds={initial:[1,1e12],years:[1,60],rate:[0,0.2],paths:[100,100000],seed:[0,4294967295],cagr:[-0.2,0.3],vol:[0,0.8],fee:[0,0.05],drag:[-0.05,0.05],inflation:[-0.05,0.2],inflationVol:[0,0.2],block:[1,120],usWeight:[0,1],transition:[1,30],longRun:[-0.2,0.3],guard:[0.01,0.8],adjust:[0.01,0.5],ceiling:[0,0.5],floor:[0,0.5],spendingFloor:[0,1],successTarget:[0.5,0.999]};
+  const bounds={initial:[1,1e12],years:[1,60],rate:[0,0.2],paths:[100,100000],seed:[0,4294967295],cagr:[-0.2,0.3],vol:[0,0.8],fee:[0,0.05],drag:[-0.05,0.05],inflation:[-0.05,0.2],inflationVol:[0,0.2],block:[1,120],usWeight:[0,1],transition:[1,30],longRun:[-0.2,0.3],guard:[0.01,0.8],adjust:[0.01,0.5],ceiling:[0,0.5],floor:[0,0.5],minimumMonthlySpending:[0,1e12]};
   for(const [k,[lo,hi]] of Object.entries(bounds))if(!Number.isFinite(c[k])||c[k]<lo||c[k]>hi)throw Error(`${k} 必須介於 ${lo} 與 ${hi}。`);
   for(const k of ['years','paths','seed','block','transition'])if(!Number.isInteger(c[k]))throw Error(`${k} 必須為整數。`);
   if(!STRATEGIES[c.strategy])throw Error('未知提領策略。');
-  if(!['survival','lifestyle'].includes(c.successMetric))throw Error('未知成功定義。');
   if(!['historical','custom','vcmm','msci'].includes(c.returnMode)||!['parametric','stationary','iid'].includes(c.sampling)||!['constant','preset','lognormal','historical','cpi'].includes(c.inflationModel))throw Error('未知市場模型。');
   if(c.returnMode==='historical'&&c.sampling==='parametric')throw Error('歷史模式請使用 Block Bootstrap 或 IID。');
   if((c.returnMode==='historical'||c.sampling!=='parametric')&&(!data||data.returns.length<24))throw Error('尚未載入專案歷史股票月資料。請選自訂／VCMM 參數模型。');
@@ -101,19 +100,20 @@ export function withdrawal(c,{year,wealth,price,previous,previousPrice,previousR
 export function wilson(successes,n){const z=1.95996398454,phat=successes/n,den=1+z*z/n,mid=(phat+z*z/(2*n))/den,half=z*Math.sqrt(phat*(1-phat)/n+z*z/(4*n*n))/den;return [Math.max(0,mid-half),Math.min(1,mid+half)];}
 export function quantile(sorted,q){const pos=(sorted.length-1)*q,lo=Math.floor(pos);return sorted[lo]+(sorted[Math.min(lo+1,sorted.length-1)]-sorted[lo])*(pos-lo);}
 export function evaluate(c,market,{summaryOnly=false,progress=()=>{}}={}){
-  const t=performance.now(),N=market.paths,T=market.years,base=c.initial*c.rate;
+  const t=performance.now(),N=market.paths,T=market.years,base=c.initial*c.rate,annualMinimum=c.minimumMonthlySpending*12;
   const assets=summaryOnly?null:Array.from({length:T+1},()=>new Float64Array(N));
   const spends=summaryOnly?null:Array.from({length:T},()=>new Float64Array(N));
   const terminal=new Float64Array(N),depletion=new Uint32Array(T+1),drops=[0,0,0,0];
-  let ruined=0,lifestyle=0,failed=0,minRatioSum=0,worstId=0,bestId=0;
+  let ruined=0,lifestyle=0,minRatioSum=0,worstId=0,bestId=0;
   for(let p=0;p<N;p++){
-    let wealth=c.initial,price=1,previous=base,previousPrice=1,previousReturn=0,minRatio=1,ruinYear=0;
+    let wealth=c.initial,price=1,previous=base,previousPrice=1,previousReturn=0,minRatio=1,minRealSpending=Infinity,ruinYear=0;
     if(assets)assets[0][p]=wealth;
     for(let y=0;y<T;y++){
       const desired=wealth>0?withdrawal(c,{year:y,wealth,price,previous,previousPrice,previousReturn}):0;
       if(!Number.isFinite(desired))throw Error('支出超出數值範圍；請檢查資料與假設。');
       const actual=Math.min(wealth,Math.max(0,desired)),real=actual/price;
       if(spends)spends[y][p]=real;
+      minRealSpending=Math.min(minRealSpending,real);
       if(base>0)minRatio=Math.min(minRatio,real/base);
       if(!ruinYear&&((wealth-actual)<=c.initial*1e-12||actual+1e-8<desired)){ruinYear=y+1;}
       const k=p*T+y;wealth=Math.max(0,(wealth-actual)*market.factors[k]);
@@ -125,14 +125,14 @@ export function evaluate(c,market,{summaryOnly=false,progress=()=>{}}={}){
     if(terminal[p]<terminal[worstId]||p===0)worstId=p;
     if(terminal[p]>terminal[bestId])bestId=p;
     if(ruinYear){ruined++;depletion[ruinYear]++;}
-    const goodSpending=minRatio+1e-10>=c.spendingFloor;
+    // Compare actual annual spending in today's purchasing power, independently of the initial withdrawal.
+    const goodSpending=minRealSpending+16*Number.EPSILON*Math.max(1,annualMinimum)>=annualMinimum;
     if(!ruinYear&&goodSpending)lifestyle++;
-    if(c.successMetric==='survival'?!!ruinYear:(!!ruinYear||!goodSpending))failed++;
     [0.1,0.2,0.3,0.5].forEach((d,i)=>{if(minRatio<1-d-1e-10)drops[i]++;});
     if(!summaryOnly&&p%5000===0)progress(0.5+p/N*0.25,'套用提領策略');
   }
-  const survival=1-ruined/N,success=1-failed/N;
-  const out={survival,success,lifestyle:lifestyle/N,ruined,paths:N,drops:drops.map(v=>v/N),depletion:Array.from(depletion),survivalCI:wilson(N-ruined,N),successCI:wilson(N-failed,N),meanMinSpendingRatio:minRatioSum/N,elapsed:performance.now()-t};
+  const survival=1-ruined/N,success=lifestyle/N;
+  const out={survival,success,lifestyle:success,ruined,paths:N,drops:drops.map(v=>v/N),depletion:Array.from(depletion),survivalCI:wilson(N-ruined,N),successCI:wilson(lifestyle,N),meanMinSpendingRatio:minRatioSum/N,elapsed:performance.now()-t};
   if(summaryOnly)return out;
   const qs=[.01,.05,.25,.5,.75,.95,.99];
   const percentiles=series=>series.map((v,i)=>{const sorted=v.slice().sort();return {year:i,values:qs.map(q=>quantile(sorted,q))};});
@@ -145,11 +145,4 @@ export function evaluate(c,market,{summaryOnly=false,progress=()=>{}}={}){
   for(const v of terminal){const i=max?Math.min(31,Math.floor(Math.log1p(v/c.initial)/max*32)):0;bins[i].count++;}out.histogram=bins;
   const deaths=[];for(let y=1;y<=T;y++)for(let k=0;k<depletion[y];k++)deaths.push(y);out.medianDepletion=deaths.length?quantile(deaths,.5):null;
   out.elapsed=performance.now()-t;return out;
-}
-export function searchRate(c,market,progress=()=>{}){
-  // Guardrails are nonmonotonic because cut/raise decisions are discontinuous.
-  // Scan every 0.1 percentage point and report highest observed passing rate, never claim a mathematical bound.
-  const trials=[];let best=null;
-  for(let bps=10;bps<=1500;bps+=10){const rate=bps/10000,r=evaluate({...c,rate},market,{summaryOnly:true});trials.push({rate,success:r.success,lower:r.successCI[0]});if(r.successCI[0]>=c.successTarget)best=rate;if(bps%50===0)progress(bps/1500,'搜尋初始提領率');}
-  return {rate:best,trials,step:0.001,upper:0.15,target:c.successTarget,metric:c.successMetric,conservative:true,boundary:best===0.15,paths:market.paths};
 }

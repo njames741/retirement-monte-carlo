@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DEFAULTS as D,prepareMarket,evaluate,withdrawal,rng,quantile,wilson,searchRate,targetLog,validate} from '../dist/engine.js';
+import {DEFAULTS as D,prepareMarket,evaluate,withdrawal,rng,quantile,wilson,targetLog,validate} from '../dist/engine.js';
 import {parseCSV,statistics,vcmmRate} from '../dist/data.js';
 const near=(actual,expected,tol=1e-8)=>assert.ok(Math.abs(actual-expected)<tol,`${actual} != ${expected}`);
 const config=over=>({...D,paths:100,years:5,vol:0,fee:0,inflation:0,cagr:0,...over});
@@ -23,7 +23,6 @@ test('GK strict guard boundaries; capital preservation stops in final 15 years',
 test('GK no obsolete 6% cap and only one adjustment per year',()=>{const c=config({strategy:'gk',years:50});near(withdrawal(c,state({price:1.1,wealth:1e6})),44000);near(withdrawal(c,state({wealth:100000})),36000);});
 test('Dynamic ceiling/floor apply to CPI-adjusted previous spending',()=>{const c=config({strategy:'dynamic'});near(withdrawal(c,state({price:1.1,wealth:2e6})),40000*1.1*1.05);near(withdrawal(c,state({price:1.1,wealth:1e5})),40000*1.1*.975);});
 test('Quantiles ordered, exact endpoints, Wilson reference values',()=>{const a=new Float64Array([1,2,3,4]);near(quantile(a,.5),2.5);near(quantile(a,0),1);const ci=wilson(9500,10000);assert.ok(ci[0]<.95&&ci[1]>.95);near(ci[0],.945552,.00001);});
-test('50-year deterministic withdrawal grid matches solvency/lifestyle math',()=>{let c=config({paths:1000,years:50,successMetric:'survival',successTarget:.95});let r=searchRate(c,flat(c));near(r.rate,.019);c={...c,strategy:'percent',successMetric:'lifestyle',spendingFloor:.8};r=searchRate(c,flat(c));near(r.rate,.004);});
 test('Result summaries and complete evaluation agree; every quantile monotonic',()=>{const c=config({vol:.18,cagr:.06}),m=prepareMarket(c),r=evaluate(c,m),s=evaluate(c,m,{summaryOnly:true});for(const k of ['survival','success','lifestyle','ruined'])assert.equal(r[k],s[k]);for(const a of [...r.assetPercentiles,...r.spendingPercentiles])for(let i=1;i<7;i++)assert.ok(a.values[i]>=a.values[i-1]&&a.values[i-1]>=0);});
 test('VCMM anchor and transition explicitly respect horizons',()=>{near(vcmmRate(.63),.05089);const c=config({returnMode:'vcmm',transition:10,longRun:.07});near(targetLog(c,9),Math.log1p(.05089));near(targetLog(c,10),Math.log1p(.05089)+(Math.log1p(.07)-Math.log1p(.05089))*.1);near(targetLog(c,19),Math.log1p(.07));near(targetLog(c,49),Math.log1p(.07));});
 test('CSV validates dates, decimals, gaps, duplicates, CPI and costs',()=>{const lines=['date,index,cpi'];for(let i=0;i<25;i++)lines.push(`${2000+Math.floor(i/12)}-${String(i%12+1).padStart(2,'0')},${100*1.01**i},${100*1.002**i}`);const d=parseCSV(lines.join('\n'));assert.equal(d.returns.length,24);near(d.stats.cagr,1.01**12-1);near(d.inflation[0],.002);assert.throws(()=>parseCSV(lines.join('\n').replace('2000-02','2000-03')),/連續/);assert.throws(()=>parseCSV(lines.join('\n').replace('2000-02','2000-02-30')),/日數/);assert.throws(()=>parseCSV(lines.join('\n').replace('100,100','0,100')),/大於/);assert.throws(()=>parseCSV('date,return\n2000-01,-1\n2000-02,0'),/大於/);});
@@ -65,17 +64,8 @@ test('Derived level returns reject overflow and underflow instead of accepting c
   }
 });
 test('Zero withdrawal preserves spending semantics and exact final-year exhaustion counts',()=>{
-  const c=config({rate:0,years:2});const r=evaluate(c,flat(c));assert.equal(r.lifestyle,1);assert.deepEqual(r.drops,[0,0,0,0]);
+  const c=config({rate:0,years:2});const r=evaluate(c,flat(c));assert.equal(r.lifestyle,0);assert.equal(evaluate({...c,minimumMonthlySpending:0},flat(c)).lifestyle,1);assert.deepEqual(r.drops,[0,0,0,0]);
   const d=config({rate:.2,years:5});assert.equal(evaluate(d,flat(d)).depletion[5],d.paths);
-  assert.throws(()=>validate({...c,successMetric:'typo'}),/成功定義/);
-});
-test('GK search scans every grid point even when success increases locally',()=>{
-  const c=config({paths:100,years:40,strategy:'gk',vol:.4,cagr:.03,seed:19,successTarget:.5,successMetric:'survival',fee:.0006,inflation:.025});
-  const m=prepareMarket(c),r=searchRate(c,m);
-  assert.ok(r.trials.some((v,i,a)=>i&&v.success>a[i-1].success),'fixture must contain nonmonotonic guardrail outcomes');
-  assert.equal(r.trials.length,150);
-  const oracle=Array.from({length:150},(_,i)=>(i+1)/1000).filter(rate=>evaluate({...c,rate},m,{summaryOnly:true}).successCI[0]>=c.successTarget).at(-1);
-  assert.equal(r.rate,oracle);near(r.rate,.033);
 });
 test('Multi-year overflow cannot leak NaN or Infinity into research summaries',()=>{
   const c=config({years:5,rate:0});

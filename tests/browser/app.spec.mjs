@@ -45,16 +45,15 @@ test('default form submits; Pages subpath loads modules and Worker; charts respo
   await page.screenshot({path:info.outputPath('dashboard.png'),fullPage:true});
 });
 
-test('four strategies share paths; assumption comparison and 150-point search',async({page})=>{
+test('four strategies share paths and assumptions use the same spending floor',async({page})=>{
   await page.getByRole('button',{name:'策略與情境',exact:true}).click();
   await page.locator('#compareRun').click();await expect(page.locator('#statusText')).toContainText('計算完成');
   await expect(page.locator('#compareTable tr')).toHaveCount(4);
   await expect(page.locator('#compareTable tr').nth(1)).toContainText('0.0%');
   await page.locator('#assumptionRun').click();await expect(page.locator('#statusText')).toContainText('計算完成');
   await expect(page.locator('#assumptionTable tr')).toHaveCount(3);
-  await page.getByRole('button',{name:'提領率探索',exact:true}).click();
-  await page.locator('#swrRun').click();await expect(page.locator('#statusText')).toContainText('計算完成');
-  await expect(page.locator('#swrValue')).toHaveText('1.5%');
+  await expect(page.locator('#compareMeta')).toContainText('每月至少 $2,666.67');
+  await expect(page.locator('#assumptionMeta')).toContainText('每月至少 $2,666.67');
 });
 
 test('built-in CPI and VCMM work with no file import and persist across reloads',async({page})=>{
@@ -87,9 +86,9 @@ test('downloads contain real results and snapshot omits raw monthly series; stal
   expect(json.result.ruined).toBe(4304);expect(json.config.seed).toBe(741);expect(json.timing.marketCached).toBe(false);expect(JSON.stringify(json)).not.toContain('"returns":');
   await parameters(page);await page.locator('#initial').fill('2000000');await page.locator('#years').fill('40');
   await expect(page.locator('#spendingMetric')).toHaveText('$40,000');await expect(page.locator('#horizon')).toHaveText('50 年');
-  if(await page.locator('#mobileParams').isVisible())await page.locator('#closeParams').click();
-  await page.getByRole('button',{name:'提領率探索',exact:true}).click();await page.locator('#spendingFloor').fill('70');
-  await page.reload();await page.getByRole('button',{name:'提領率探索',exact:true}).click();await expect(page.locator('#spendingFloor')).toHaveValue('70');
+  await page.locator('#minimumMonthlySpending').fill('2500');
+  await expect(page.locator('#lifestyleNote')).toContainText('$2,666.67');
+  await page.reload();await parameters(page);await expect(page.locator('#minimumMonthlySpending')).toHaveValue('2,500');
 });
 
 test('100k simulation can be cancelled and rerun',async({page},info)=>{
